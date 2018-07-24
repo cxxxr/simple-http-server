@@ -97,12 +97,12 @@
         (format stream "~A: ~A" key value)
         (write-sequence #(#\return #\linefeed) stream)))
 
-(defun get-current-date ()
+(defun rfc7231-date ()
   (multiple-value-bind (second minute hour date month year day)
       (get-decoded-time)
-    (format nil "~[Mon~;Tue~;Wed~;Thu~;Fri~;Sat~;Sun~], ~D ~
+    (format nil "~[Mon~;Tue~;Wed~;Thu~;Fri~;Sat~;Sun~], ~2,'0D ~
 		 ~[Jan~;Feb~;Mar~;Apr~;May~;Jun~;Jul~;Aug~;Sep~;Oct~;Nov~;Dec~] ~
-		 ~D ~D:~D:~D GMT"
+		 ~D ~2,'0D:~2,'0D:~2,'0D GMT"
             day date month year hour minute second)))
 
 (defun write-http-response (server request stream)
