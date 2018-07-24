@@ -36,16 +36,6 @@
   (push (list :path path :method method :function function)
         (server-handlers server)))
 
-(defun apply-with-error-handle (function &rest args)
-  (handler-bind ((error (lambda (condition)
-                          (capi:display-message "~A"
-                                                (with-output-to-string (out)
-                                                  (format out "~A~%" condition)
-                                                  (uiop:print-backtrace :stream out
-                                                                        :condition condition)))
-                          (return-from apply-with-error-handle))))
-    (apply function args)))
-
 (defun read-http-request (stream)
   (let ((request (make-http-request)))
     (labels ((method-string-to-keyword (str)
@@ -97,14 +87,6 @@
         (format stream "~A: ~A" key value)
         (write-sequence #(#\return #\linefeed) stream)))
 
-(defun rfc7231-date ()
-  (multiple-value-bind (second minute hour date month year day)
-      (get-decoded-time)
-    (format nil "~[Mon~;Tue~;Wed~;Thu~;Fri~;Sat~;Sun~], ~2,'0D ~
-		 ~[Jan~;Feb~;Mar~;Apr~;May~;Jun~;Jul~;Aug~;Sep~;Oct~;Nov~;Dec~] ~
-		 ~D ~2,'0D:~2,'0D:~2,'0D GMT"
-            day date month year hour minute second)))
-
 (defun write-http-response (server request stream)
   (let ((function (find-handler server request)))
     (when function
@@ -112,7 +94,7 @@
              (body (funcall function request response)))
         (write-line "HTTP/1.0 200 OK" stream)
         (write-header-fields `(("Server" . ,*server-name*)
-                               ("Date" . ,(get-current-date))
+                               ("Date" . ,(rfc7231-date))
                                ,@(and (response-content-type response)
                                       `(("Content-Type" . ,(response-content-type response))))
                                ,@(and body
