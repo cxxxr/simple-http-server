@@ -58,19 +58,21 @@
                          (http-request-path request) path
                          (http-request-version request) version))))
              (header-fields ()
-               (let ((fields (make-hash-table :test 'equal)))
+               (let ((fields '()))
                  (loop :for line := (read-line stream nil nil)
                        :until (or (null line)
                                   (string= line ""))
                        :do (destructuring-bind (key value)
                                (split-sequence ":" line :max-elements 2)
-                             (setf (gethash key fields)
-                                   (string-right-trim ""
-                                                      (string-trim " " value)))))
+                             (push (cons key
+                                         (string-right-trim ""
+                                                            (string-trim " " value)))
+                                   fields)))
                  (setf (http-request-fields request)
-                       fields)))
+                       (nreverse fields))))
              (content-length ()
-               (if-let (v (gethash "Content-Length" (http-request-fields request)))
+               (if-let (v (assoc "Content-Length" (http-request-fields request)
+                                 :test #'string=))
                    (parse-integer v)
                  0))
              (message-body ()
