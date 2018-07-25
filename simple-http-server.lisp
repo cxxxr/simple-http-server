@@ -3,13 +3,18 @@
 (defparameter *server-name* (package-name *package*))
 
 (defclass server ()
-  ((port :initarg :port
-         :reader server-port)
-   (address :initarg :address
-            :initform "127.0.0.1"
-            :reader server-address)
-   (handlers :initform '()
-             :accessor server-handlers)))
+  ((port
+    :initarg :port
+    :reader server-port)
+   (address
+    :initarg :address
+    :initform "127.0.0.1"
+    :reader server-address)
+   (handlers
+    :initform '()
+    :accessor server-handlers)
+   (process
+    :accessor server-process)))
 
 (defstruct http-request
   method
@@ -30,7 +35,10 @@
                    (apply-with-error-handle 'process-http-request server socket-handle)))
     (when startup-condition
       (error startup-condition))
-    process))
+    (setf (server-process server) process)))
+
+(defun stop (server)
+  (comm:server-terminate (server-process server)))
 
 (defun publish (server &key path (method :get) function)
   (push (list :path path :method method :function function)
