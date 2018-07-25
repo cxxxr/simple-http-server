@@ -118,13 +118,5 @@
                                 :direction :io
                                 :element-type 'base-char))
          (request (read-http-request stream)))
+    (pprint request *log-stream*)
     (write-http-response server request stream)))
-
-
-(defvar *hello-counter* 0)
-
-(defun index (request response)
-  (declare (ignore request))
-  (setf (response-content-type response) "text/html")
-  (incf *hello-counter*)
-  (format nil "<h1>Counter: ~D</h1>" *hello-counter*))
