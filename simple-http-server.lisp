@@ -141,7 +141,11 @@
          :test #'string=))
 
 (defun response-path (server path stream)
-  (declare (ignore server))
+  (when (uiop:pathname-equal path (server-document-root server))
+    (setf path (merge-pathnames "index.html" path)))
+  (when (uiop/pathname:directory-pathname-p path)
+    (404-not-found stream)
+    (return-from response-path))
   (write-line "HTTP/1.1 200 OK" stream)
   (let ((body (uiop:read-file-string path)))
     (write-header-fields `(("Server" . ,*server-name*)
