@@ -21,6 +21,7 @@
 (defstruct http-request
   method
   path
+  query
   version
   fields
   message-body)
@@ -46,18 +47,30 @@
   (push (list :path path :method method :function function)
         (server-handlers server)))
 
+(defun parse-query (str)
+  (when-let (pos (position #\# str))
+    (setf str (subseq str 0 pos)))
+  (mapcar (lambda (str)
+            (split-sequence "=" str))
+          (split-sequence "&" str)))
+
 (defun read-http-request (stream)
   (let ((request (make-http-request)))
     (labels ((method-string-to-keyword (str)
                (intern str :keyword))
              (request-line ()
                ;; TODO: ここで不正なrequest-lineなら404を返す (RFC7230 3.1.1)
-               (let ((line (read-line stream)))
+               (let ((line (read-line stream))
+                     query-str)
                  (setf line (string-right-trim '(#\Return) line))
                  (destructuring-bind (method path version)
                      (split-sequence " " line)
+                   (when-let (query-pos (position #\? path))
+                     (setf query-str (subseq path (1+ query-pos))
+                           path (subseq path 0 query-pos)))
                    (setf (http-request-method request) (method-string-to-keyword method)
                          (http-request-path request) path
+                         (http-request-query request) (and query-str (parse-query query-str))
                          (http-request-version request) version))))
              (header-fields ()
                (let ((fields '()))
