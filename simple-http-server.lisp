@@ -1,7 +1,5 @@
 (in-package :simple-http-server)
 
-(defparameter *server-name* (package-name *package*))
-
 (defclass server ()
   ((port
     :initarg :port
@@ -13,6 +11,10 @@
    (handlers
     :initform '()
     :accessor server-handlers)
+   (document-root
+    :initform nil
+    :initarg :document-root
+    :reader server-document-root)
    (process
     :accessor server-process)))
 
@@ -83,6 +85,9 @@
       (request-line)
       (header-fields)
       (message-body)
+      (pprint request *log-stream*)
+      (terpri *log-stream*)
+      (force-output *log-stream*)
       request)))
 
 (defun find-handler (server request)
@@ -97,14 +102,79 @@
         (format stream "~A: ~A" key value)
         (write-sequence #(#\return #\linefeed) stream)))
 
+(defun path-from-document-root (path root)
+  (make-pathname :directory (cons :absolute (append (rest (pathname-directory root))
+                                                    (rest (pathname-directory path))))
+                 :name (pathname-name path)
+                 :type (pathname-type path)))
+
+(defun in-root-directory-p (path root)
+  (declare (optimize (speed 0) (safety 3) (debug 3)))
+  (setf root (probe-file root))
+  (setf path (probe-file path))
+  (when (and root path)
+    (let ((root-directory (pathname-directory root))
+          (path-directory (pathname-directory path)))
+      (assert (eq :absolute (first root-directory)))
+      (assert (eq :absolute (first path-directory)))
+      (pop root-directory)
+      (pop path-directory)
+      (loop :for rest1 :on root-directory
+            :for rest2 :on path-directory
+            :do (cond ((not (equal (car rest1) (car rest2)))
+                       (return nil))
+                      ((and (null (cdr rest2))
+                            (not (null (cdr rest1))))
+                       (return nil)))
+            :finally (return t)))))
+
+(defun guess-content-type-from-pathname (pathname)
+  (assoc (pathname-type pathname)
+         '(("html" . "text/html")
+           ("htm" . "text/html")
+           ("txt" . "text/plain")
+           ("css" . "text/css")
+           ("png" . "image/png")
+           ("jpg" . "image/jpeg")
+           ("jpeg" . "image/jpeg")
+           ("gif" . "image/gif"))
+         :test #'string=))
+
+(defun response-path (server path stream)
+  (declare (ignore server))
+  (write-line "HTTP/1.1 200 OK" stream)
+  (let ((body (uiop:read-file-string path)))
+    (write-header-fields `(("Server" . ,*server-name*)
+                           ("Date" . ,(rfc7231-date))
+                           ("Connection" . "close")
+                           ("Content-Type" . ,(guess-content-type-from-pathname path))
+                           ("Content-Length" . ,(length body)))
+                         stream)
+    (write-sequence #(#\return #\linefeed) stream)
+    (write-sequence body stream)
+    (force-output stream)))
+
+(defun 404-not-found (stream)
+  (write-line "HTTP/1.1 404 Not Found" stream)
+  (let ((body "<h1>not found</h1>"))
+    (write-header-fields `(("Server" . ,*server-name*)
+                           ("Date" . ,(rfc7231-date))
+                           ("Connection" . "close")
+                           ("Content-Type" . "text/html")
+                           ("Content-Length" . ,(length body)))
+                         stream)
+    (write-sequence #(#\return #\linefeed) stream)
+    (write-sequence body stream)
+    (force-output stream)))
+
 (defun write-http-response (server request stream)
-  (let ((function (find-handler server request)))
-    (when function
+  (if-let (function (find-handler server request))
       (let* ((response (make-http-response))
              (body (funcall function request response)))
-        (write-line "HTTP/1.0 200 OK" stream)
+        (write-line "HTTP/1.1 200 OK" stream)
         (write-header-fields `(("Server" . ,*server-name*)
                                ("Date" . ,(rfc7231-date))
+                               ("Connection" . "close")
                                ,@(and (response-content-type response)
                                       `(("Content-Type" . ,(response-content-type response))))
                                ,@(and body
@@ -112,7 +182,13 @@
                              stream)
         (write-sequence #(#\return #\linefeed) stream)
         (write-sequence body stream)
-        (force-output stream)))))
+        (force-output stream))
+    (if-let (document-root (server-document-root server))
+        (let ((path (path-from-document-root (http-request-path request) document-root)))
+          (if (in-root-directory-p path document-root)
+              (response-path server path stream)
+              (404-not-found stream)))
+      (404-not-found stream))))
 
 (defun process-http-request (server socket-handle)
   (let* ((stream (make-instance 'comm:socket-stream
@@ -120,5 +196,4 @@
                                 :direction :io
                                 :element-type 'base-char))
          (request (read-http-request stream)))
-    (pprint request *log-stream*)
     (write-http-response server request stream)))

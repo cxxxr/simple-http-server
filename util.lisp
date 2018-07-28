@@ -10,10 +10,8 @@
 
 (defun apply-with-error-handle (function &rest args)
   (handler-bind ((error (lambda (condition)
-                          (capi:display-message "~A"
-                                                (with-output-to-string (out)
-                                                  (format out "~A~%" condition)
-                                                  (uiop:print-backtrace :stream out
-                                                                        :condition condition)))
+                          (format *log-stream* "~A~%" condition)
+                          (uiop:print-backtrace :stream *log-stream*
+                                                :condition condition)
                           (return-from apply-with-error-handle))))
     (apply function args)))
