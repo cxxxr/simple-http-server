@@ -86,7 +86,7 @@
                    (let* ((pos (position #\= string :start i))
                           (key (subseq string i pos)))
                      (if (char= (aref string (1+ pos)) #\")
-                         nil
+                         (error "未実装")
                          (let* ((pos2 (position #\; string :start (1+ pos)))
                                 (value (string-trim " " (subseq string (1+ pos) pos2))))
                            (setf i (if pos2 (1+ pos2) (length string)))
@@ -109,7 +109,10 @@
              (let ((query (parse-query (request-message-body request))))
                (dolist (elt query)
                  (setf (cdr elt) (url-decode (cdr elt))))
-               (setf (request-query request) query)))))))
+               (setf (request-query request) query)))
+            ((and (string-equal type "multipart")
+                  (string-equal subtype "form-data"))
+             (error "未実装"))))))
 
 (defun read-http-request (stream)
   (let ((request (make-request)))
