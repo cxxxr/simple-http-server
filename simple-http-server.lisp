@@ -188,10 +188,14 @@
     (write-sequence body stream)
     (force-output stream)))
 
+(defun call-handler (function request response)
+  (let ((body (funcall function request response)))
+    (to-simple-char-string (babel:string-to-octets body))))
+
 (defun write-http-response (server request stream)
   (if-let (function (find-handler server request))
       (let* ((response (make-response))
-             (body (funcall function request response)))
+             (body (call-handler function request response)))
         (write-line "HTTP/1.1 200 OK" stream)
         (write-header-fields `(("Server" . ,*server-name*)
                                ("Date" . ,(rfc7231-date))

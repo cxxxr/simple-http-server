@@ -16,10 +16,13 @@
 		 ~D ~2,'0D:~2,'0D:~2,'0D GMT"
             day date month year hour minute second)))
 
+(defun to-simple-char-string (sequence)
+  (map 'string 'code-char sequence))
+
 (defun read-file-base-char-string (filename)
   (with-open-file (stream  filename
                            :direction :input
                            :element-type '(unsigned-byte 8))
     (let ((buffer (make-array (file-length stream))))
       (read-sequence buffer stream)
-      (map 'string 'code-char buffer))))
+      (to-simple-char-string buffer))))
