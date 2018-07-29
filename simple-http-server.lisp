@@ -31,6 +31,7 @@
   message-body)
 
 (defstruct response
+  content-type
   status)
 
 (defun start (server)
