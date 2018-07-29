@@ -198,7 +198,7 @@
       (let* ((response (make-response))
              (body (call-handler function request response)))
         (write-line "HTTP/1.1 200 OK" stream)
-        (write-header-fields `(("Server" . ,*server-name*)
+        (write-header-fields `(("Server" . ,(server-name server))
                                ("Date" . ,(rfc7231-date))
                                ("Connection" . "close")
                                ,@(and (response-content-type response)
