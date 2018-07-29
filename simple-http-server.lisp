@@ -56,8 +56,17 @@
   (when-let (pos (position #\# str))
     (setf str (subseq str 0 pos)))
   (mapcar (lambda (str)
-            (split-sequence "=" str))
+            (destructuring-bind (key value) (split-sequence "=" str)
+              (cons key value)))
           (split-sequence "&" str)))
+
+(defun maybe-set-post-parameters (request)
+  (when (equal "application/x-www-form-urlencoded"
+               (cdr (assoc "Content-Type" (request-fields request) :test #'string=)))
+    (let ((query (parse-query (request-message-body request))))
+      (dolist (elt query)
+        (setf (cdr elt) (url-decode (cdr elt))))
+      (setf (request-query request) query))))
 
 (defun read-http-request (stream)
   (let ((request (make-request)))
@@ -99,13 +108,11 @@
                (let* ((content-length (content-length))
                       (buffer (make-array content-length)))
                  (read-sequence buffer stream)
-                 (setf (request-message-body request) buffer))))
+                 (setf (request-message-body request) (coerce buffer 'string)))))
       (request-line)
       (header-fields)
       (message-body)
-      (pprint request *log-stream*)
-      (terpri *log-stream*)
-      (force-output *log-stream*)
+      (maybe-set-post-parameters request)
       request)))
 
 (defun find-handler (server request)
@@ -189,6 +196,25 @@
     (write-sequence body stream)
     (force-output stream)))
 
+(defun url-decode (string)
+  (let ((buffer (make-array 0 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0)))
+    (loop :with i := 0
+          :while (< i (length string))
+          :for c := (aref string i)
+          :do (case c
+                (#\%
+                 (incf i)
+                 (vector-push-extend (parse-integer string :start i :end (+ i 2) :radix 16)
+                                     buffer)
+                 (incf i 2))
+                (#\+
+                 (vector-push-extend #.(char-code #\space) buffer)
+                 (incf i))
+                (otherwise
+                 (vector-push-extend (char-code c) buffer)
+                 (incf i))))
+    (babel:octets-to-string buffer)))
+
 (defun call-handler (function request response)
   (let ((body (funcall function request response)))
     (to-simple-char-string (babel:string-to-octets body))))
@@ -223,4 +249,7 @@
                                 :direction :io
                                 :element-type 'base-char))
          (request (read-http-request stream)))
+    (pprint request *log-stream*)
+    (terpri *log-stream*)
+    (force-output *log-stream*)
     (write-http-response server request stream)))
