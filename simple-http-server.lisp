@@ -1,7 +1,11 @@
 (in-package :simple-http-server)
 
 (defclass server ()
-  ((port
+  ((name
+    :initarg :name
+    :initform (package-name *package*)
+    :reader server-name)
+   (port
     :initarg :port
     :reader server-port)
    (address
@@ -157,11 +161,11 @@
   (when (uiop:pathname-equal path (server-document-root server))
     (setf path (merge-pathnames "index.html" path)))
   (when (uiop:directory-pathname-p path)
-    (404-not-found stream)
+    (404-not-found server stream)
     (return-from response-path))
   (write-line "HTTP/1.1 200 OK" stream)
   (let ((body (read-file-base-char-string path)))
-    (write-header-fields `(("Server" . ,*server-name*)
+    (write-header-fields `(("Server" . ,(server-name server))
                            ("Date" . ,(rfc7231-date))
                            ("Connection" . "close")
                            ("Content-Type" . ,(guess-content-type-from-pathname path))
@@ -171,10 +175,10 @@
     (write-sequence body stream)
     (force-output stream)))
 
-(defun 404-not-found (stream)
+(defun 404-not-found (server stream)
   (write-line "HTTP/1.1 404 Not Found" stream)
   (let ((body "<h1>not found</h1>"))
-    (write-header-fields `(("Server" . ,*server-name*)
+    (write-header-fields `(("Server" . ,(server-name server))
                            ("Date" . ,(rfc7231-date))
                            ("Connection" . "close")
                            ("Content-Type" . "text/html")
@@ -205,8 +209,8 @@
         (let ((path (path-from-document-root (request-path request) document-root)))
           (if (in-root-directory-p path document-root)
               (response-path server path stream)
-              (404-not-found stream)))
-      (404-not-found stream))))
+              (404-not-found server stream)))
+      (404-not-found server stream))))
 
 (defun process-http-request (server socket-handle)
   (let* ((stream (make-instance 'comm:socket-stream
