@@ -204,7 +204,7 @@
         (write-sequence #(#\return #\linefeed) stream)
         (write-sequence body stream)
         (force-output stream))
-    (if-let (document-root (and (equal :GET (request-method request))
+    (if-let (document-root (and (eq :GET (request-method request))
                                 (server-document-root server)))
         (let ((path (path-from-document-root (request-path request) document-root)))
           (if (in-root-directory-p path document-root)
