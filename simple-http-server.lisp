@@ -18,7 +18,7 @@
    (process
     :accessor server-process)))
 
-(defstruct http-request
+(defstruct request
   method
   path
   query
@@ -26,8 +26,8 @@
   fields
   message-body)
 
-(defstruct (http-response (:conc-name response-))
-  content-type)
+(defstruct response
+  status)
 
 (defun start (server)
   (multiple-value-bind (process startup-condition)
@@ -55,7 +55,7 @@
           (split-sequence "&" str)))
 
 (defun read-http-request (stream)
-  (let ((request (make-http-request)))
+  (let ((request (make-request)))
     (labels ((method-string-to-keyword (str)
                (intern str :keyword))
              (request-line ()
@@ -68,10 +68,10 @@
                    (when-let (query-pos (position #\? path))
                      (setf query-str (subseq path (1+ query-pos))
                            path (subseq path 0 query-pos)))
-                   (setf (http-request-method request) (method-string-to-keyword method)
-                         (http-request-path request) path
-                         (http-request-query request) (and query-str (parse-query query-str))
-                         (http-request-version request) version))))
+                   (setf (request-method request) (method-string-to-keyword method)
+                         (request-path request) path
+                         (request-query request) (and query-str (parse-query query-str))
+                         (request-version request) version))))
              (header-fields ()
                (let ((fields '()))
                  (loop :for line := (read-line stream nil nil)
@@ -83,10 +83,10 @@
                                          (string-right-trim ""
                                                             (string-trim " " value)))
                                    fields)))
-                 (setf (http-request-fields request)
+                 (setf (request-fields request)
                        (nreverse fields))))
              (content-length ()
-               (if-let (v (cdr (assoc "Content-Length" (http-request-fields request)
+               (if-let (v (cdr (assoc "Content-Length" (request-fields request)
                                       :test #'string=)))
                    (parse-integer v)
                  0))
@@ -94,7 +94,7 @@
                (let* ((content-length (content-length))
                       (buffer (make-array content-length)))
                  (read-sequence buffer stream)
-                 (setf (http-request-message-body request) buffer))))
+                 (setf (request-message-body request) buffer))))
       (request-line)
       (header-fields)
       (message-body)
@@ -106,8 +106,8 @@
 (defun find-handler (server request)
   (dolist (handler (server-handlers server))
     (destructuring-bind (&key path method function) handler
-      (when (and (equal path (http-request-path request))
-                 (eq method (http-request-method request)))
+      (when (and (equal path (request-path request))
+                 (eq method (request-method request)))
         (return function)))))
 
 (defun write-header-fields (alist stream)
@@ -186,7 +186,7 @@
 
 (defun write-http-response (server request stream)
   (if-let (function (find-handler server request))
-      (let* ((response (make-http-response))
+      (let* ((response (make-response))
              (body (funcall function request response)))
         (write-line "HTTP/1.1 200 OK" stream)
         (write-header-fields `(("Server" . ,*server-name*)
@@ -200,9 +200,9 @@
         (write-sequence #(#\return #\linefeed) stream)
         (write-sequence body stream)
         (force-output stream))
-    (if-let (document-root (and (equal "GET" (http-request-method request))
+    (if-let (document-root (and (equal "GET" (request-method request))
                                 (server-document-root server)))
-        (let ((path (path-from-document-root (http-request-path request) document-root)))
+        (let ((path (path-from-document-root (request-path request) document-root)))
           (if (in-root-directory-p path document-root)
               (response-path server path stream)
               (404-not-found stream)))
