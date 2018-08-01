@@ -6,4 +6,5 @@
   :components ((:file "package")
                (:file "variables")
                (:file "util")
+               (:file "parser")
                (:file "simple-http-server")))

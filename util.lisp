@@ -26,3 +26,6 @@
     (let ((buffer (make-array (file-length stream))))
       (read-sequence buffer stream)
       (to-simple-char-string buffer))))
+
+(defun make-adjustable-string ()
+  (make-array 0 :fill-pointer 0 :adjustable t :element-type 'simple-char))
