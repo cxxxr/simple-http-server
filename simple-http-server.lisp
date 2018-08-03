@@ -60,12 +60,14 @@
               (cons key value)))
           (split-sequence "&" str)))
 
+(defun multipart-form-data (boundary message-body)
+  (declare (ignore boundary message-body))
+  (error "multipart/form-data is not implemented yet."))
 
 (defun maybe-set-post-parameters (request)
   (when-let (content-type (cdr (assoc "Content-Type" (request-fields request) :test #'string=)))
     (multiple-value-bind (type subtype parameters)
         (parse-content-type content-type)
-      (declare (ignore parameters))
       (cond ((and (string-equal type "application")
                   (string-equal subtype "x-www-form-urlencoded"))
              (let ((query (parse-query (request-message-body request))))
@@ -74,7 +76,8 @@
                (setf (request-query request) query)))
             ((and (string-equal type "multipart")
                   (string-equal subtype "form-data"))
-             (error "未実装"))))))
+             (when-let (boundary (cdr (assoc "boundary" parameters :test #'string=)))
+               (multipart-form-data boundary (request-message-body request))))))))
 
 (defun read-http-request (stream)
   (let ((request (make-request)))
