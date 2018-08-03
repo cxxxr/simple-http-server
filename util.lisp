@@ -29,3 +29,22 @@
 
 (defun make-adjustable-string ()
   (make-array 0 :fill-pointer 0 :adjustable t :element-type 'simple-char))
+
+(defun url-decode (string)
+  (let ((buffer (make-array 0 :element-type '(unsigned-byte 8) :adjustable t :fill-pointer 0)))
+    (loop :with i := 0
+          :while (< i (length string))
+          :for c := (aref string i)
+          :do (case c
+                (#\%
+                 (incf i)
+                 (vector-push-extend (parse-integer string :start i :end (+ i 2) :radix 16)
+                                     buffer)
+                 (incf i 2))
+                (#\+
+                 (vector-push-extend #.(char-code #\space) buffer)
+                 (incf i))
+                (otherwise
+                 (vector-push-extend (char-code c) buffer)
+                 (incf i))))
+    (babel:octets-to-string buffer)))
