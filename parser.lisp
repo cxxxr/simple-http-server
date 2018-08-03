@@ -62,7 +62,7 @@
               (read-quoted-string reader)
               (read-token reader #\;)))))
 
-(defun parse-media-type (reader)
+(defun read-media-type (reader)
   (let ((type nil)
         (subtype nil)
         (parameters '()))
@@ -78,4 +78,4 @@
     (values type subtype (nreverse parameters))))
 
 (defun parse-content-type (string)
-  (parse-media-type (make-reader :string string)))
+  (read-media-type (make-reader :string string)))
