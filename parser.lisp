@@ -76,3 +76,6 @@
       (skip-whitespace reader)
       (push (read-parameter reader) parameters))
     (values type subtype (nreverse parameters))))
+
+(defun parse-content-type (string)
+  (parse-media-type (make-reader :string string)))

@@ -60,8 +60,6 @@
               (cons key value)))
           (split-sequence "&" str)))
 
-(defun parse-content-type (string)
-  (parse-media-type (make-reader :string string)))
 
 (defun maybe-set-post-parameters (request)
   (when-let (content-type (cdr (assoc "Content-Type" (request-fields request) :test #'string=)))
