@@ -74,6 +74,7 @@
                (dolist (elt query)
                  (setf (cdr elt) (url-decode (cdr elt))))
                (setf (request-query request) query)))
+            #+(or)
             ((and (string-equal type "multipart")
                   (string-equal subtype "form-data"))
              (when-let (boundary (cdr (assoc "boundary" parameters :test #'string=)))
