@@ -52,6 +52,9 @@
   (push (list :path path :method method :function function)
         (server-handlers server)))
 
+(defun request-field-value (request key)
+  (cdr (assoc key (request-fields request) :test #'string=)))
+
 (defun parse-query (str)
   (when-let (pos (position #\# str))
     (setf str (subseq str 0 pos)))
@@ -65,7 +68,7 @@
   (error "multipart/form-data is not implemented yet."))
 
 (defun maybe-set-post-parameters (request)
-  (when-let (content-type (cdr (assoc "Content-Type" (request-fields request) :test #'string=)))
+  (when-let (content-type (request-field-value request "Content-Type"))
     (multiple-value-bind (type subtype parameters)
         (parse-content-type content-type)
       (cond ((and (string-equal type "application")
@@ -112,8 +115,7 @@
                  (setf (request-fields request)
                        (nreverse fields))))
              (content-length ()
-               (if-let (v (cdr (assoc "Content-Length" (request-fields request)
-                                      :test #'string=)))
+               (if-let (v (request-field-value request "Content-Length"))
                    (parse-integer v)
                  0))
              (message-body ()
