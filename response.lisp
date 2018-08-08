@@ -149,7 +149,6 @@
              (body (call-handler function request response)))
         (write-status-line stream 200)
         (write-header-field stream "Server" (server-name server))
-        (write-header-field stream "Server" (server-name server))
         (write-header-field stream "Date" (rfc-1123-date))
         (write-header-field stream "Connection" "close")
         (when (response-content-type response)
