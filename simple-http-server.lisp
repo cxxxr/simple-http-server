@@ -55,6 +55,10 @@
 (defun request-field-value (request key)
   (cdr (assoc key (request-fields request) :test #'string=)))
 
+(defun get-cookie-values (request)
+  (let ((cookie (request-field-value request "Cookie")))
+    (parse-cookie-string cookie)))
+
 (defun parse-query (str)
   (when-let (pos (position #\# str))
     (setf str (subseq str 0 pos)))
