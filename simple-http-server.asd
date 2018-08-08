@@ -9,5 +9,4 @@
                (:file "parser")
                (:file "server")
                (:file "request")
-               (:file "response")
-               (:file "simple-http-server")))
+               (:file "response")))
