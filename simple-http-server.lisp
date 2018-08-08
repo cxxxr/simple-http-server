@@ -22,17 +22,33 @@
    (process
     :accessor server-process)))
 
-(defstruct request
-  method
-  path
-  query
-  version
-  fields
-  message-body)
+(defclass request ()
+  ((method
+    :initarg :method
+    :accessor request-method)
+   (path
+    :initarg :path
+    :accessor request-path)
+   (query
+    :initarg :query
+    :accessor request-query)
+   (version
+    :initarg :version
+    :accessor request-version)
+   (fields
+    :initarg :fields
+    :accessor request-fields)
+   (message-body
+    :initarg :message-body
+    :accessor request-message-body)))
 
-(defstruct response
-  content-type
-  status)
+(defclass response ()
+  ((content-type
+    :initarg :content-type
+    :accessor response-content-type)
+   (status
+    :initarg :status
+    :accessor response-status)))
 
 (defun start (server)
   (multiple-value-bind (process startup-condition)
@@ -88,7 +104,7 @@
                (multipart-form-data boundary (request-message-body request))))))))
 
 (defun read-http-request (stream)
-  (let ((request (make-request)))
+  (let ((request (make-instance 'request)))
     (labels ((method-string-to-keyword (str)
                (intern str :keyword))
              (request-line ()
@@ -220,7 +236,7 @@
 
 (defun write-http-response (server request stream)
   (if-let (function (find-handler server request))
-      (let* ((response (make-response))
+      (let* ((response (make-instance 'response))
              (body (call-handler function request response)))
         (write-line "HTTP/1.1 200 OK" stream)
         (write-header-fields `(("Server" . ,(server-name server))
