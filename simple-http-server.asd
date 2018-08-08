@@ -7,5 +7,7 @@
                (:file "variables")
                (:file "util")
                (:file "parser")
+               (:file "server")
                (:file "request")
+               (:file "response")
                (:file "simple-http-server")))
