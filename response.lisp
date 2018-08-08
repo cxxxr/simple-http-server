@@ -2,6 +2,7 @@
 
 (defclass response ()
   ((content-type
+    :initform nil
     :initarg :content-type
     :accessor response-content-type)
    (status
