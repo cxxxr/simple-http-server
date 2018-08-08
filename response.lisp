@@ -46,11 +46,40 @@
                     (format nil "HTTP/1.1 ~D ~A~C~C" code msg #\return #\linefeed)))
     table))
 
+(defclass cookie ()
+  ((name
+    :initarg :name
+    :reader cookie-name)
+   (value
+    :initarg :value
+    :reader cookie-value)
+   (expires
+    :initform nil
+    :reader cookie-expires)
+   (max-age
+    :initform nil
+    :reader cookie-max-age)
+   (domain
+    :initform nil
+    :reader cookie-domain)
+   (path
+    :initform nil
+    :reader cookie-path)
+   (secure
+    :initform nil
+    :reader cookie-secure)
+   (http-only
+    :initform nil
+    :reader cookie-http-only)))
+
 (defclass response ()
   ((content-type
     :initform nil
     :initarg :content-type
     :accessor response-content-type)
+   (cookies
+    :initform nil
+    :accessor response-cookies)
    (status
     :initarg :status
     :accessor response-status)))
@@ -75,6 +104,28 @@
 (defun write-header-field (stream key value)
   (format stream "~A: ~A" key value)
   (write-newline stream))
+
+(defun bake-cookie (cookie)
+  (with-output-to-string (stream)
+    (format stream "~A = ~A"
+            (url-encode (cookie-name cookie))
+            (url-encode (cookie-value cookie)))
+    (when-let (expires (cookie-expires cookie))
+      (format stream "; Expires=~A" (rfc-1123-date expires)))
+    (when-let (max-age (cookie-max-age cookie))
+      (format stream "; Max-Age=~A" max-age))
+    (when-let (domain (cookie-domain cookie))
+      (format stream "; Domain=~A" domain))
+    (when-let (path (cookie-path cookie))
+      (format stream "; Path=~A" path))
+    (when (cookie-secure cookie)
+      (write-string "; Secure" stream))
+    (when (cookie-http-only cookie)
+      (write-string "; HttpOnly" stream))))
+
+(defun write-set-cookie (stream cookies)
+  (dolist (cookie cookies)
+    (write-header-field stream "Set-Cookie" (bake-cookie cookie))))
 
 (defun path-from-document-root (path root)
   (make-pathname :directory (cons :absolute (append (rest (pathname-directory root))
@@ -153,6 +204,8 @@
         (write-header-field stream "Connection" "close")
         (when (response-content-type response)
           (write-header-field stream "Content-Type" (response-content-type response)))
+        (when (response-cookies response)
+          (write-set-cookie stream (response-cookies response)))
         (when body
           (write-header-field stream "Content-Length" (length body)))
         (write-newline stream)

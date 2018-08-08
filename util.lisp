@@ -47,3 +47,15 @@
                  (vector-push-extend (char-code c) buffer)
                  (incf i))))
     (babel:octets-to-string buffer)))
+
+(defun url-encode (string)
+  (with-output-to-string (out)
+    (loop :for c :across string
+          :do (cond ((or (char<= #\0 c #\9)
+                         (char<= #\a c #\z)
+                         (char<= #\A c #\Z)
+                         (find c "-._~" :test #'char=))
+                     (write-char c out))
+                    (t
+                     (loop :for octet :across (babel:string-to-octets (string c))
+                           :do (format out "%~2,'0X" octet)))))))
