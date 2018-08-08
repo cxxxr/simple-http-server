@@ -40,7 +40,9 @@
     :accessor request-fields)
    (message-body
     :initarg :message-body
-    :accessor request-message-body)))
+    :accessor request-message-body)
+   (cookie-values
+    :accessor request-cookie-values)))
 
 (defclass response ()
   ((content-type
@@ -74,6 +76,11 @@
 (defun get-cookie-values (request)
   (let ((cookie (request-field-value request "Cookie")))
     (parse-cookie-string cookie)))
+
+(defmethod request-cookie-values :before ((request request))
+  (unless (slot-boundp request 'cookie-values)
+    (setf (request-cookie-values request)
+          (get-cookie-values request))))
 
 (defun parse-query (str)
   (when-let (pos (position #\# str))
