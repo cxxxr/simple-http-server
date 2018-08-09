@@ -67,7 +67,7 @@
     (labels ((method-string-to-keyword (str)
                (intern str :keyword))
              (request-line ()
-               ;; TODO: ここで不正なrequest-lineなら404を返す (RFC7230 3.1.1)
+               ;; TODO: ここで不正なrequest-lineなら400を返す (RFC7230 3.1.1)
                (let ((line (read-line stream))
                      query-str)
                  (setf line (string-right-trim '(#\Return) line))
