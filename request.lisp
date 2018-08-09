@@ -23,7 +23,10 @@
     :initarg :message-body
     :accessor request-message-body)
    (cookie-values
-    :accessor request-cookie-values)))
+    :accessor request-cookie-values)
+   (condition
+    :initform nil
+    :accessor request-condition)))
 
 (defun request-field-value (request key)
   (cdr (assoc key (request-fields request) :test #'string-equal)))
@@ -82,7 +85,6 @@
     (labels ((method-string-to-keyword (str)
                (intern str :keyword))
              (request-line ()
-               ;; TODO: ここで不正なrequest-lineなら400を返す (RFC7230 3.1.1)
                (let* ((query-str nil)
                       (line (read-crlf-line stream))
                       (tokens (split-sequence " " line)))
@@ -119,8 +121,12 @@
                       (buffer (make-array content-length)))
                  (read-sequence buffer stream)
                  (setf (request-message-body request) (coerce buffer 'string)))))
-      (request-line)
-      (header-fields)
-      (message-body)
-      (maybe-set-post-parameters request)
+      (handler-case
+          (progn
+            (request-line)
+            (header-fields)
+            (message-body)
+            (maybe-set-post-parameters request))
+        (http-request-error (condition)
+          (setf (request-condition request) condition)))
       request)))

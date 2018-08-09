@@ -194,7 +194,18 @@
     (write-sequence body stream)
     (force-output stream)))
 
+(defun 400-bad-request (server stream)
+  (write-status-line stream 400)
+  (write-header-field stream "Server" (server-name server))
+  (write-header-field stream "Date" (rfc-1123-date))
+  (write-header-field stream "Connection" "close")
+  (write-newline stream)
+  (force-output stream))
+
 (defun write-http-response (server request stream)
+  (when (request-condition request)
+    (400-bad-request server stream)
+    (return-from write-http-response))
   (if-let (function (find-handler server request))
       (let* ((response (make-instance 'response))
              (body (call-handler function request response)))
