@@ -62,15 +62,26 @@
              (when-let (boundary (cdr (assoc "boundary" parameters :test #'string=)))
                (multipart-form-data boundary (request-message-body request))))))))
 
+(defun read-crlf-line (stream)
+  (let ((buffer (make-adjustable-string)))
+    (loop :for prev := #\null :then char
+          :for char := (read-char stream nil #\null)
+          :do (cond ((char= char #\null)
+                     (return))
+                    ((and (char= prev #\return)
+                          (char= char #\linefeed))
+                     (return buffer))
+                    ((char/= prev #\null)
+                     (vector-push-extend prev buffer))))))
+
 (defun read-http-request (stream)
   (let ((request (make-instance 'request)))
     (labels ((method-string-to-keyword (str)
                (intern str :keyword))
              (request-line ()
                ;; TODO: ここで不正なrequest-lineなら400を返す (RFC7230 3.1.1)
-               (let ((line (read-line stream))
+               (let ((line (read-crlf-line stream))
                      query-str)
-                 (setf line (string-right-trim '(#\Return) line))
                  (destructuring-bind (method path version)
                      (split-sequence " " line)
                    (when-let (query-pos (position #\? path))
@@ -82,14 +93,12 @@
                          (request-version request) version))))
              (header-fields ()
                (let ((fields '()))
-                 (loop :for line := (read-line stream nil nil)
+                 (loop :for line := (read-crlf-line stream)
                        :until (or (null line)
-                                  (string= line ""))
+                                  (string= line ""))
                        :do (destructuring-bind (key value)
                                (split-sequence ":" line :max-elements 2)
-                             (push (cons key
-                                         (string-right-trim ""
-                                                            (string-trim " " value)))
+                             (push (cons key (string-trim " " value))
                                    fields)))
                  (setf (request-fields request)
                        (nreverse fields))))
