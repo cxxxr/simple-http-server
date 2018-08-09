@@ -1,5 +1,8 @@
 (in-package :simple-http-server)
 
+(defparameter +allowed-http-methods+
+  '(:GET :HEAD :POST :PUT :DELETE :CONNECT :OPTIONS :TRACE))
+
 (defclass request ()
   ((method
     :initarg :method
@@ -80,14 +83,19 @@
                (intern str :keyword))
              (request-line ()
                ;; TODO: ここで不正なrequest-lineなら400を返す (RFC7230 3.1.1)
-               (let ((line (read-crlf-line stream))
-                     query-str)
-                 (destructuring-bind (method path version)
-                     (split-sequence " " line)
+               (let* ((query-str nil)
+                      (line (read-crlf-line stream))
+                      (tokens (split-sequence " " line)))
+                 (unless (= 3 (length tokens))
+                   (error 'http-request-error))
+                 (destructuring-bind (method path version) tokens
+                   (setf method (method-string-to-keyword method))
+                   (unless (find method +allowed-http-methods+)
+                     (error 'http-request-error))
                    (when-let (query-pos (position #\? path))
                      (setf query-str (subseq path (1+ query-pos))
                            path (subseq path 0 query-pos)))
-                   (setf (request-method request) (method-string-to-keyword method)
+                   (setf (request-method request) method
                          (request-path request) path
                          (request-query request) (and query-str (parse-query query-str))
                          (request-version request) version))))
