@@ -23,7 +23,7 @@
     :accessor request-cookie-values)))
 
 (defun request-field-value (request key)
-  (cdr (assoc key (request-fields request) :test #'string=)))
+  (cdr (assoc key (request-fields request) :test #'string-equal)))
 
 (defun get-cookie-values (request)
   (let ((cookie (request-field-value request "Cookie")))
