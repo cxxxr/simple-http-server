@@ -174,7 +174,7 @@
   (write-status-line stream 200)
   (let ((body (read-file-base-char-string path)))
     (write-header-field stream "Server" (server-name server))
-    (write-header-field stream "DSate" (rfc-1123-date))
+    (write-header-field stream "Date" (rfc-1123-date))
     (write-header-field stream "Connection" "close")
     (write-header-field stream "Content-Type" (guess-content-type-from-pathname path))
     (write-header-field stream "Content-Length" (length body))
