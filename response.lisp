@@ -81,6 +81,7 @@
     :initform nil
     :accessor response-cookies)
    (status
+    :initform 200
     :initarg :status
     :accessor response-status)))
 
@@ -213,7 +214,7 @@
   (if-let (function (find-handler server request))
       (let* ((response (make-instance 'response))
              (body (call-handler function request response)))
-        (write-status-line stream 200)
+        (write-status-line stream (response-status response))
         (write-header-field stream "Server" (server-name server))
         (write-header-field stream "Date" (rfc-1123-date))
         (write-header-field stream "Connection" "close")
