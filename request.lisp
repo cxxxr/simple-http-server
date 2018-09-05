@@ -28,6 +28,13 @@
     :initform nil
     :accessor request-condition)))
 
+(defmethod print-object ((request request) stream)
+  (print-unreadable-object (request stream)
+    (format stream "REQUEST~%")
+    (loop :for slot :in (clos:class-slots (find-class 'request))
+          :for name := (clos:slot-definition-name slot)
+          :do (format stream "~A: ~S~%" name (slot-value request name)))))
+
 (defun request-field-value (request key)
   (cdr (assoc key (request-fields request) :test #'string-equal)))
 
