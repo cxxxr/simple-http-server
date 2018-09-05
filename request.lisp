@@ -24,6 +24,9 @@
     :accessor request-message-body)
    (cookie-values
     :accessor request-cookie-values)
+   (keep-alive-p
+    :initform nil
+    :accessor request-keep-alive-p)
    (condition
     :initform nil
     :accessor request-condition)))
@@ -94,7 +97,9 @@
              (request-line ()
                (let* ((query-str nil)
                       (line (read-crlf-line stream))
-                      (tokens (split-sequence " " line)))
+                      (tokens (when line (split-sequence " " line))))
+                 (when (null line)
+                   (error 'http-request-eof))
                  (unless (= 3 (length tokens))
                    (error 'http-request-error))
                  (destructuring-bind (method path version) tokens
@@ -134,6 +139,14 @@
             (header-fields)
             (message-body)
             (maybe-set-post-parameters request))
+        (http-request-eof ()
+          (return-from read-http-request nil))
         (http-request-error (condition)
           (setf (request-condition request) condition)))
+      (unless (request-condition request)
+        (when (or (string-equal "http/1.1" (request-version request))
+                  (string-equal "keep-alive" (request-field-value request "Connection")))
+          (setf (request-keep-alive-p request) t)))
+      (pprint request *log-stream*)
+      (terpri *log-stream*)
       request)))

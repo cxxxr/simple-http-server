@@ -32,7 +32,7 @@
        :service (server-port server)
        :address (server-address server)
        :function (lambda (socket-handle)
-                   (apply-with-error-handle 'process-http-request server socket-handle)))
+                   (apply-with-error-handle 'handle-new-connection server socket-handle)))
     (when startup-condition
       (error startup-condition))
     (setf (server-process server) process)))
@@ -40,10 +40,16 @@
 (defun stop (server)
   (comm:server-terminate (server-process server)))
 
-(defun process-http-request (server socket-handle)
-  (let* ((stream (make-instance 'comm:socket-stream
-                                :socket socket-handle
-                                :direction :io
-                                :element-type 'base-char))
-         (request (read-http-request stream)))
-    (write-http-response server request stream)))
+(defun handle-new-connection (server socket-handle)
+  (let ((stream (make-instance 'comm:socket-stream
+                               :socket socket-handle
+                               :direction :io
+                               :element-type 'base-char)))
+    (mp:process-run-function "connection" () 'handle-connection server stream)))
+
+(defun handle-connection (server stream)
+  (loop
+    (let ((request (read-http-request stream)))
+      (unless request (return))
+      (write-http-response server request stream)
+      (unless (request-keep-alive-p request) (return)))))
