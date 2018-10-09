@@ -31,6 +31,10 @@
     :initform nil
     :accessor request-condition)))
 
+(defstruct multipart-form-data
+  headers
+  value)
+
 (defmethod print-object ((request request) stream)
   (print-unreadable-object (request stream)
     (format stream "REQUEST~%")
@@ -58,9 +62,48 @@
               (cons key value)))
           (split-sequence "&" str)))
 
+(defun boundary-line-p (line boundary)
+  (alexandria:starts-with-subseq boundary line))
+
+(defun read-to-boundary (in boundary)
+  (loop :for line := (read-line in)
+        :until (boundary-line-p line boundary)))
+
+(defun read-multipart-form-data-headers (in)
+  (loop :for line := (read-line in)
+        :until (string= line (string #\return))
+        :collect (let ((parts (split-sequence ";" line)))
+                   (destructuring-bind (k v) (split-sequence ":" (first parts))
+                     (list* (cons k (string-trim " " v))
+                            (loop :for part :in (rest parts)
+                                  :collect (destructuring-bind (k v)
+                                               (split-sequence "=" part)
+                                             (setf k (string-trim " " k))
+                                             (setf v (string-trim " " v))
+                                             (cons k v))))))))
+
+(defun read-multipart-form-data-value (in boundary)
+  (with-output-to-string (out)
+    (loop :for line := (read-line in)
+          :for n :from 0
+          :until (boundary-line-p line boundary)
+          :do
+          (when (plusp n) (terpri out))
+          (write-string line out :end (1- (length line))))))
+
 (defun multipart-form-data (boundary message-body)
-  (declare (ignore boundary message-body))
-  (error "multipart/form-data is not implemented yet."))
+  (declare (optimize (speed 0) (safety 3) (debug 3)))
+  (setf boundary (string-append "--" boundary))
+  (with-input-from-string (in message-body)
+    (read-to-boundary in boundary)
+    (loop :with multipart-form-data-list := '()
+          :while (peek-char nil in nil nil)
+          :do (let ((headers (read-multipart-form-data-headers in))
+                    (value (read-multipart-form-data-value in boundary)))
+                (push (make-multipart-form-data :headers headers
+                                                :value value)
+                      multipart-form-data-list))
+          :finally (return (nreverse multipart-form-data-list)))))
 
 (defun maybe-set-post-parameters (request)
   (when-let (content-type (request-field-value request "Content-Type"))
@@ -72,11 +115,11 @@
                (dolist (elt query)
                  (setf (cdr elt) (url-decode (cdr elt))))
                (setf (request-query request) query)))
-            #+(or)
             ((and (string-equal type "multipart")
                   (string-equal subtype "form-data"))
              (when-let (boundary (cdr (assoc "boundary" parameters :test #'string=)))
-               (multipart-form-data boundary (request-message-body request))))))))
+               (setf (request-query request)
+                     (multipart-form-data boundary (request-message-body request)))))))))
 
 (defun read-crlf-line (stream)
   (let ((buffer (make-adjustable-string)))
